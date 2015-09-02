@@ -1,5 +1,8 @@
 #!/bin/bash
 
+## TODO: add dvd episodes || this is a dirty one-liner test 
+#for i in `seq 4`; do ./handbrake --input /Volumes/E1587/ --title $i --preset Normal --output ~/Desktop/NameOfDisc_Title$i.mp4; done
+
 # Change independent field seperator
 SAVEIFS=$IFS
 IFS=$'\n'
@@ -7,44 +10,57 @@ IFS=$'\n'
 APP_PATH="$( cd "$(dirname "$0")" ; pwd -P )"
 APP_NAME="$(basename "$0")"
 BASE_APP_PATH=`echo $APP_PATH | sed -e 's/Contents\/MacOS//g'`
+DATE=`date +%Y%m%d-%H%M%S`
 
 # Check for preferred notifier.
 check_gem=`gem list terminal-notifier -i`
 
 ## Create functions for repetitious work
 # Notification functions
+function success_completion () {
+  if [[ $check_gem == "true" ]]; then
+    echo "Completed all files" | terminal-notifier -title $APP_NAME -sound default -contentImage "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
+  else
+    osascript -e "display notification \"Completed all files\" with title \"$APP_NAME\""
+  fi
+}
 function success () {
   if [[ $check_gem == "true" ]]; then
-    echo "Converted: $output_directory/$@" | terminal-notifier -sound default -appIcon "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
+    echo "Completed: $@" | terminal-notifier -title $APP_NAME -contentImage "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
   else
-    osascript -e "display notification \"App Created: $output_directory/Converted: $@\" with title \"$APP_NAME\""
+    osascript -e "display notification \"Completed: $@\" with title \"$APP_NAME\""
+  fi
+}
+function killed () {
+  if [[ $check_gem == "true" ]]; then
+    echo "$APP_NAME Killed" | terminal-notifier -title $APP_NAME -sound Basso -contentImage "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
+  else
+    osascript -e "display notification \"$APP_NAME Killed\" with title \"$APP_NAME\""
   fi
 }
 function failure () {
   if [[ $check_gem == "true" ]]; then
-    echo "Failed: $output_directory/$@" | terminal-notifier -sound default -appIcon "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
+    echo "Failed: $@" | terminal-notifier -title $APP_NAME -sound Basso -contentImage "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
   else
-    osascript -e "display notification \"Failed: $output_directory/$@\" with title \"$APP_NAME\""
-  fi
-}
-function status () {
-  if [[ $check_gem == "true" ]]; then
-    echo "Status: $@" | terminal-notifier -sound default -appIcon "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
-  else
-    osascript -e "display notification \"Status: $@\" with title \"$APP_NAME\""
+    osascript -e "display notification \"Failed: $@\" with title \"$APP_NAME\""
   fi
 }
 function error {
   if [[ $check_gem == "true" ]]; then
-    echo "Exiting: Error" | terminal-notifier -sound default -appIcon "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
+    echo "Exiting: Error" | terminal-notifier -title $APP_NAME -sound Basso -contentImage "$BASE_APP_PATH/Contents/Resources/$APP_NAME.icns"
   else
     osascript -e "display notification \"Exiting: Error\" with title \"$APP_NAME\""
   fi
 }
-
 # Misc work and Errors
 function cut_string () {
   echo $@ | cut -d ":" -f 2
+}
+function check_removal () {
+  if [[ $? == 1 ]]; then
+    IFS=$SAVEIFS
+    exit 1
+  fi
 }
 function check_bool () {
   if [[ $? == 1 ]]; then
@@ -53,24 +69,17 @@ function check_bool () {
     exit 1
   fi
 }
-
-## This is a first pass at grabbing the status
-# # Check Status
-# function check_status {
-#   is_running=`ps -ef | grep "handbrake" | grep -v grep`
-#   if [[ -n $is_running ]]; then
-#     status=`tail -1 /Users/scobb/Dropbox/applets/apps/HandJob.app/Contents/Resources/tmp/*.txt | grep "00h"`
-#     osascript -e 'tell app "System Events" to display dialog "'$status'" buttons {"Cancel","Folder","Proceed"} default button 3 with title "'$APP_NAME'" with icon {"'$BASE_APP_PATH'/Contents/Resources/'$APP_NAME'.icns"}'
-#   fi
-# }
-
-# check_status
-
-## One Liner to do dvd episodes: 
-#for i in `seq 4`; do ./handbrake --input /Volumes/E1587/ --title $i --preset Normal --output ~/Desktop/NameOfDisc_Title$i.mp4; done
+function kill_app () {
+  pids=`ps -ef | grep $APP_NAME | grep "handbrake" | awk '{print $2}'`
+  for pid in $pids; do
+    kill $pid
+    killed
+    exit 0
+  done
+}
 
 # Prompt for file/folder input
-input_selector=`osascript -e 'tell app "System Events" to display dialog "Select a File or Folder?" buttons {"Cancel","Folder","File"} default button 3 with title "'$APP_NAME'" with icon {"'$BASE_APP_PATH'/Contents/Resources/'$APP_NAME'.icns"}'` 
+input_selector=`osascript -e 'tell app "System Events" to display dialog "Select a File or Folder?" buttons {"Kill","Folder","File"} default button 3 with title "'$APP_NAME'" with icon {"'$BASE_APP_PATH'/Contents/Resources/'$APP_NAME'.icns"}'` 
 check_bool $input_selector
 input_selection=`cut_string $input_selector`
 
@@ -80,11 +89,13 @@ if [[ $input_selection == "File" ]]; then
   check_bool $files
   file_list=`find "$files"`
   input_directory=`dirname "$files"`
-else
+elif [[ $input_selection == "Folder" ]]; then
   files=`osascript -e 'tell application "System Events" to return POSIX path of (choose folder)'`
   check_bool $files
-  file_list=`find "$files" -not -path '*/\.*'  \( -iname "*.avi" -o -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.mpg" \)`
+  file_list=`find "$files" -iname "*.mkv"`
   input_directory="$files"  
+elif [[ $input_selection == "Kill" ]]; then
+  kill_app
 fi
 
 # Prompt for folder output
@@ -93,9 +104,7 @@ check_bool $output_selector
 output_selection=`cut_string $output_selector`
 
 # Do a check for output selection default/other
-if [[ $output_selection == "Default" ]]; then 
-  output_directory=$input_directory 
-else
+if [[ $output_selection != "Default" ]]; then 
   output_directory=`osascript -e 'tell application "System Events" to return POSIX path of (choose folder)'`
   check_bool $output_directory
 fi
@@ -106,11 +115,21 @@ extension=`cut_string $prompt_extension`
 
 # Do the work
 for file in $file_list; do
+  if [[ $output_selection == "Default" ]]; then
+    output_directory=`dirname $file`
+  fi  
   base_filename=`basename $file`
-  $BASE_APP_PATH/Contents/Resources/bin/handbrake -i "$file" -o $output_directory/"${base_filename%.***}.$extension" --preset="$preset" > $BASE_APP_PATH/Contents/Resources/tmp/$base_filename.txt
+  dest_filename="${base_filename%.***}.$extension"
+  if [ -f $output_directory/${dest_filename} ];
+    then dest_filename="${base_filename%.***}.${DATE}.$extension"
+  fi
+  $BASE_APP_PATH/Contents/Resources/bin/handbrake -i "$file" -o $output_directory/"${dest_filename}" --preset="$preset" > $BASE_APP_PATH/Contents/Resources/tmp/$base_filename.txt
   check_bool
   success "${base_filename%.***}.$extension"
   rm -f $BASE_APP_PATH/Contents/Resources/tmp/$base_filename.txt
 done
 
 IFS=$SAVEIFS
+
+success_completion
+exit 0
