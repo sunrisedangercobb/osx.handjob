@@ -70,10 +70,11 @@ function check_bool () {
   fi
 }
 function kill_app () {
-  pids=`ps -ef | grep $APP_NAME | grep "handbrake" | awk '{print $2}'`
+  pids=`ps -ef | grep $APP_NAME | grep "/bin/bash" | awk '{print $2}'`
   for pid in $pids; do
     kill $pid
     killed
+    IFS=$SAVEIFS
     exit 0
   done
 }
