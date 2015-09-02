@@ -130,7 +130,8 @@ for file in $file_list; do
   rm -f $BASE_APP_PATH/Contents/Resources/tmp/$base_filename.txt
 done
 
+success_completion
+
 IFS=$SAVEIFS
 
-success_completion
 exit 0
