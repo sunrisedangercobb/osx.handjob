@@ -93,7 +93,7 @@ if [[ $input_selection == "File" ]]; then
 elif [[ $input_selection == "Folder" ]]; then
   files=`osascript -e 'tell application "System Events" to return POSIX path of (choose folder)'`
   check_bool $files
-  file_list=`find "$files" -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.mpg" -o -iname "*.avi" -o -iname "*.wmv"`
+  file_list=`find "$files" -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.mpg" -o -iname "*.avi"`
   input_directory="$files"  
 elif [[ $input_selection == "Kill" ]]; then
   kill_app
