@@ -1,4 +1,4 @@
-# osx_apps-HandJob
+# HandJob
 A basic wrapper for handbrake binary that allow you to do multiple jobs.
 
 This is a shout out to the amazing team at handbrake, you guys are amazing; thanks for all your hardwork to create such a robust tool!
